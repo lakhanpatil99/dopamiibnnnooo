@@ -2,19 +2,21 @@ import React, { useState } from "react";
 import {
   View,
   StyleSheet,
-  TextInput,
   Pressable,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Image,
+  Dimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import Animated, {
+  FadeInDown,
+  FadeInUp,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -22,6 +24,7 @@ import Animated, {
 
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
+import { Input } from "@/components/Input";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/context/AuthContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
@@ -29,7 +32,7 @@ import { Spacing, BorderRadius, LDPSColors } from "@/constants/theme";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 export default function LoginScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -42,8 +45,6 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-
-  const buttonScale = useSharedValue(1);
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -76,163 +77,161 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
-      <ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          {
-            paddingTop: insets.top + 60,
-            paddingBottom: insets.bottom + 24,
-          },
-        ]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+    <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
+      <LinearGradient
+        colors={[LDPSColors.primary, LDPSColors.primaryDark]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
       >
-        <View style={styles.header}>
-          <View
-            style={[
-              styles.logoContainer,
-              { backgroundColor: LDPSColors.primary },
-            ]}
-          >
-            <Image
-              source={require("../../assets/images/icon.png")}
-              style={styles.logo}
-              resizeMode="contain"
-            />
+        <View style={styles.headerDecoration1} />
+        <View style={styles.headerDecoration2} />
+
+        <Animated.View
+          entering={FadeInDown.delay(100).duration(500)}
+          style={styles.headerContent}
+        >
+          <View style={styles.logoContainer}>
+            <Feather name="truck" size={36} color="#FFFFFF" />
           </View>
-          <ThemedText type="h2" style={styles.title}>
+          <ThemedText type="h2" style={styles.welcomeText}>
             Welcome Back
           </ThemedText>
-          <ThemedText
-            type="body"
-            style={[styles.subtitle, { color: theme.textSecondary }]}
-          >
+          <ThemedText type="body" style={styles.welcomeSubtext}>
             Sign in to continue with LDPS
           </ThemedText>
-        </View>
+        </Animated.View>
+      </LinearGradient>
 
-        <View style={styles.form}>
-          {error ? (
-            <View
-              style={[
-                styles.errorContainer,
-                { backgroundColor: `${LDPSColors.error}15` },
-              ]}
-            >
-              <Feather name="alert-circle" size={16} color={LDPSColors.error} />
-              <ThemedText
-                type="small"
-                style={[styles.errorText, { color: LDPSColors.error }]}
-              >
-                {error}
-              </ThemedText>
-            </View>
-          ) : null}
-
-          <View style={styles.inputGroup}>
-            <ThemedText type="small" style={styles.label}>
-              Email or Phone
-            </ThemedText>
-            <View
-              style={[
-                styles.inputContainer,
-                { backgroundColor: theme.backgroundSecondary, borderColor: theme.border },
-              ]}
-            >
-              <Feather
-                name="mail"
-                size={20}
-                color={theme.textSecondary}
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={[styles.input, { color: theme.text }]}
-                placeholder="Enter your email or phone"
-                placeholderTextColor={theme.textSecondary}
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <ThemedText type="small" style={styles.label}>
-              Password
-            </ThemedText>
-            <View
-              style={[
-                styles.inputContainer,
-                { backgroundColor: theme.backgroundSecondary, borderColor: theme.border },
-              ]}
-            >
-              <Feather
-                name="lock"
-                size={20}
-                color={theme.textSecondary}
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={[styles.input, { color: theme.text }]}
-                placeholder="Enter your password"
-                placeholderTextColor={theme.textSecondary}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-              />
-              <Pressable
-                onPress={() => setShowPassword(!showPassword)}
-                style={styles.eyeButton}
+      <KeyboardAvoidingView
+        style={styles.formContainer}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: insets.bottom + 24 },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <Animated.View
+            entering={FadeInUp.delay(200).duration(500)}
+            style={[styles.formCard, { backgroundColor: theme.backgroundDefault }]}
+          >
+            {error ? (
+              <View
+                style={[
+                  styles.errorContainer,
+                  { backgroundColor: `${LDPSColors.error}10` },
+                ]}
               >
                 <Feather
-                  name={showPassword ? "eye-off" : "eye"}
-                  size={20}
-                  color={theme.textSecondary}
+                  name="alert-circle"
+                  size={18}
+                  color={LDPSColors.error}
                 />
+                <ThemedText
+                  type="small"
+                  style={{ color: LDPSColors.error, flex: 1 }}
+                >
+                  {error}
+                </ThemedText>
+              </View>
+            ) : null}
+
+            <Input
+              label="Email or Phone"
+              icon="mail"
+              placeholder="Enter your email or phone"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+
+            <Input
+              label="Password"
+              icon="lock"
+              placeholder="Enter your password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              rightIcon={showPassword ? "eye-off" : "eye"}
+              onRightIconPress={() => setShowPassword(!showPassword)}
+            />
+
+            <Pressable style={styles.forgotPassword}>
+              <ThemedText
+                type="small"
+                style={{ color: LDPSColors.primary, fontWeight: "600" }}
+              >
+                Forgot Password?
+              </ThemedText>
+            </Pressable>
+
+            <Button
+              onPress={handleLogin}
+              disabled={isLoading}
+              style={styles.loginButton}
+            >
+              {isLoading ? "Signing in..." : "Sign In"}
+            </Button>
+
+            <View style={styles.dividerContainer}>
+              <View style={[styles.divider, { backgroundColor: theme.border }]} />
+              <ThemedText
+                type="small"
+                style={{ color: theme.textSecondary, paddingHorizontal: 16 }}
+              >
+                or continue with
+              </ThemedText>
+              <View style={[styles.divider, { backgroundColor: theme.border }]} />
+            </View>
+
+            <View style={styles.socialButtons}>
+              <Pressable
+                style={[
+                  styles.socialButton,
+                  { backgroundColor: theme.backgroundSecondary },
+                ]}
+                onPress={() => Haptics.selectionAsync()}
+              >
+                <Feather name="smartphone" size={20} color={theme.text} />
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.socialButton,
+                  { backgroundColor: theme.backgroundSecondary },
+                ]}
+                onPress={() => Haptics.selectionAsync()}
+              >
+                <Feather name="mail" size={20} color={theme.text} />
               </Pressable>
             </View>
-          </View>
+          </Animated.View>
 
-          <Pressable style={styles.forgotPassword}>
-            <ThemedText
-              type="small"
-              style={{ color: LDPSColors.primary, fontWeight: "500" }}
-            >
-              Forgot Password?
-            </ThemedText>
-          </Pressable>
-
-          <Button
-            onPress={handleLogin}
-            disabled={isLoading}
-            style={styles.loginButton}
+          <Animated.View
+            entering={FadeInUp.delay(400).duration(500)}
+            style={styles.footer}
           >
-            {isLoading ? "Signing in..." : "Sign In"}
-          </Button>
-        </View>
-
-        <View style={styles.footer}>
-          <ThemedText type="body" style={{ color: theme.textSecondary }}>
-            Don't have an account?{" "}
-          </ThemedText>
-          <Pressable onPress={() => navigation.navigate("Register")}>
-            <ThemedText
-              type="body"
-              style={{ color: LDPSColors.primary, fontWeight: "600" }}
-            >
-              Sign Up
+            <ThemedText type="body" style={{ color: theme.textSecondary }}>
+              Don't have an account?{" "}
             </ThemedText>
-          </Pressable>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            <Pressable onPress={() => navigation.navigate("Register")}>
+              <ThemedText
+                type="body"
+                style={{ color: LDPSColors.primary, fontWeight: "700" }}
+              >
+                Sign Up
+              </ThemedText>
+            </Pressable>
+          </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -240,72 +239,76 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: Spacing.xl,
-  },
   header: {
-    alignItems: "center",
-    marginBottom: 40,
-  },
-  logoContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 24,
+    height: 280,
+    paddingTop: 60,
+    paddingHorizontal: Spacing.xl,
     overflow: "hidden",
   },
-  logo: {
-    width: 60,
-    height: 60,
+  headerDecoration1: {
+    position: "absolute",
+    top: -80,
+    right: -60,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: "rgba(255,255,255,0.1)",
   },
-  title: {
+  headerDecoration2: {
+    position: "absolute",
+    bottom: 20,
+    left: -40,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
+  headerContent: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  logoContainer: {
+    width: 72,
+    height: 72,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  welcomeText: {
+    color: "#FFFFFF",
     marginBottom: 8,
     textAlign: "center",
   },
-  subtitle: {
+  welcomeSubtext: {
+    color: "rgba(255,255,255,0.8)",
     textAlign: "center",
   },
-  form: {
+  formContainer: {
+    flex: 1,
+    marginTop: -40,
+  },
+  scrollContent: {
+    paddingHorizontal: Spacing.xl,
+  },
+  formCard: {
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xl,
     gap: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 8,
   },
   errorContainer: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 12,
-    borderRadius: BorderRadius.sm,
-    gap: 8,
-  },
-  errorText: {
-    flex: 1,
-  },
-  inputGroup: {
-    gap: 8,
-  },
-  label: {
-    fontWeight: "500",
-    marginLeft: 4,
-  },
-  inputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    height: Spacing.inputHeight,
+    padding: 14,
     borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.lg,
-  },
-  inputIcon: {
-    marginRight: 12,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    height: "100%",
-  },
-  eyeButton: {
-    padding: 4,
+    gap: 10,
   },
   forgotPassword: {
     alignSelf: "flex-end",
@@ -313,10 +316,30 @@ const styles = StyleSheet.create({
   loginButton: {
     marginTop: 8,
   },
+  dividerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 8,
+  },
+  divider: {
+    flex: 1,
+    height: 1,
+  },
+  socialButtons: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 16,
+  },
+  socialButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   footer: {
     flexDirection: "row",
     justifyContent: "center",
-    marginTop: "auto",
-    paddingTop: 24,
+    marginTop: 24,
   },
 });

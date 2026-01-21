@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { View, StyleSheet, Pressable, Image } from "react-native";
+import { View, StyleSheet, Pressable, Dimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import Animated, {
   FadeInDown,
@@ -14,10 +15,12 @@ import Animated, {
   withTiming,
   withSequence,
   Easing,
+  interpolate,
 } from "react-native-reanimated";
 
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { ThemedText } from "@/components/ThemedText";
+import { AnimatedCard } from "@/components/AnimatedCard";
 import { useTheme } from "@/hooks/useTheme";
 import { storage, Order } from "@/lib/storage";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
@@ -29,13 +32,21 @@ type ScreenRouteProp = RouteProp<RootStackParamList, "OrderStatus">;
 type OrderStatus = "searching" | "assigned" | "in_transit" | "delivered";
 
 const STATUSES: { key: OrderStatus; label: string; icon: string }[] = [
-  { key: "searching", label: "Searching for Partner", icon: "search" },
-  { key: "assigned", label: "Partner Assigned", icon: "user-check" },
+  { key: "searching", label: "Searching", icon: "search" },
+  { key: "assigned", label: "Assigned", icon: "user-check" },
   { key: "in_transit", label: "In Transit", icon: "truck" },
   { key: "delivered", label: "Delivered", icon: "check-circle" },
 ];
 
-const DRIVER_NAMES = ["Raj Kumar", "Amit Singh", "Vikash Sharma", "Priya Patel"];
+const DRIVER_NAMES = [
+  "Raj Kumar",
+  "Amit Singh",
+  "Vikash Sharma",
+  "Priya Patel",
+  "Rahul Verma",
+];
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 export default function OrderStatusScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -49,6 +60,7 @@ export default function OrderStatusScreen() {
   const [currentStatusIndex, setCurrentStatusIndex] = useState(0);
 
   const pulseScale = useSharedValue(1);
+  const waveProgress = useSharedValue(0);
 
   useEffect(() => {
     loadOrder();
@@ -58,9 +70,15 @@ export default function OrderStatusScreen() {
     if (order && order.status !== "delivered") {
       pulseScale.value = withRepeat(
         withSequence(
-          withTiming(1.2, { duration: 800, easing: Easing.inOut(Easing.ease) }),
-          withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1.15, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
         ),
+        -1,
+        false,
+      );
+
+      waveProgress.value = withRepeat(
+        withTiming(1, { duration: 2000, easing: Easing.linear }),
         -1,
         false,
       );
@@ -147,65 +165,110 @@ export default function OrderStatusScreen() {
   const currentStatus = STATUSES[currentStatusIndex];
   const isDelivered = currentStatus.key === "delivered";
 
+  const getStatusMessage = () => {
+    switch (currentStatus.key) {
+      case "searching":
+        return "Looking for the best delivery partner near you...";
+      case "assigned":
+        return `${order.driverName} is on the way to pick up your package!`;
+      case "in_transit":
+        return "Your package is on its way to the destination!";
+      case "delivered":
+        return "Your package has been delivered successfully!";
+      default:
+        return "";
+    }
+  };
+
   return (
     <KeyboardAwareScrollViewCompat
       style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
       contentContainerStyle={{
-        paddingTop: headerHeight + Spacing.xl,
+        paddingTop: headerHeight + Spacing.lg,
         paddingBottom: insets.bottom + 24,
-        paddingHorizontal: Spacing.lg,
       }}
     >
       <Animated.View
         entering={FadeInDown.delay(100).duration(400)}
-        style={styles.header}
+        style={styles.headerSection}
       >
-        <ThemedText type="small" style={{ color: theme.textSecondary }}>
-          Order ID
-        </ThemedText>
-        <ThemedText type="h4">{order.id}</ThemedText>
+        <View style={styles.orderIdRow}>
+          <ThemedText type="small" style={{ color: theme.textSecondary }}>
+            Order ID
+          </ThemedText>
+          <Pressable
+            style={[styles.copyButton, { backgroundColor: theme.backgroundDefault }]}
+            onPress={() => Haptics.selectionAsync()}
+          >
+            <Feather name="copy" size={14} color={theme.textSecondary} />
+          </Pressable>
+        </View>
+        <ThemedText type="h3">{order.id}</ThemedText>
+      </Animated.View>
+
+      <Animated.View
+        entering={FadeInDown.delay(150).duration(400)}
+        style={styles.statusSection}
+      >
+        <LinearGradient
+          colors={
+            isDelivered
+              ? [LDPSColors.success, "#059669"]
+              : [LDPSColors.primary, LDPSColors.primaryDark]
+          }
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.statusCard}
+        >
+          <View style={styles.statusCardDecoration} />
+
+          <Animated.View
+            style={[styles.statusIconContainer, !isDelivered && pulseAnimatedStyle]}
+          >
+            <Feather
+              name={currentStatus.icon as any}
+              size={36}
+              color="#FFFFFF"
+            />
+          </Animated.View>
+
+          <ThemedText type="h3" style={styles.statusTitle}>
+            {currentStatus.label}
+          </ThemedText>
+
+          <ThemedText type="body" style={styles.statusMessage}>
+            {getStatusMessage()}
+          </ThemedText>
+
+          {!isDelivered ? (
+            <View style={styles.estimatedTime}>
+              <Feather name="clock" size={16} color="rgba(255,255,255,0.8)" />
+              <ThemedText
+                type="small"
+                style={{ color: "rgba(255,255,255,0.8)" }}
+              >
+                Estimated: 15-20 mins
+              </ThemedText>
+            </View>
+          ) : null}
+        </LinearGradient>
       </Animated.View>
 
       <Animated.View
         entering={FadeInDown.delay(200).duration(400)}
-        style={[styles.statusCard, { backgroundColor: theme.backgroundDefault }]}
+        style={[styles.section, { paddingHorizontal: Spacing.xl }]}
       >
-        <View style={styles.currentStatusSection}>
-          <Animated.View
-            style={[
-              styles.statusIconContainer,
-              {
-                backgroundColor: isDelivered
-                  ? `${LDPSColors.success}20`
-                  : `${LDPSColors.primary}20`,
-              },
-              !isDelivered && pulseAnimatedStyle,
-            ]}
-          >
-            <Feather
-              name={currentStatus.icon as any}
-              size={32}
-              color={isDelivered ? LDPSColors.success : LDPSColors.primary}
-            />
-          </Animated.View>
-          <ThemedText type="h3" style={styles.statusLabel}>
-            {currentStatus.label}
-          </ThemedText>
-          <ThemedText type="body" style={{ color: theme.textSecondary }}>
-            {isDelivered
-              ? "Your package has been delivered successfully!"
-              : "We're working on your delivery..."}
-          </ThemedText>
-        </View>
-
-        <View style={styles.progressContainer}>
+        <View
+          style={[styles.progressCard, { backgroundColor: theme.backgroundDefault }]}
+        >
           {STATUSES.map((status, index) => {
             const isCompleted = index <= currentStatusIndex;
             const isCurrent = index === currentStatusIndex;
+            const isLast = index === STATUSES.length - 1;
 
             return (
-              <React.Fragment key={status.key}>
-                <View style={styles.progressStep}>
+              <View key={status.key} style={styles.progressStep}>
+                <View style={styles.progressIndicator}>
                   <View
                     style={[
                       styles.progressDot,
@@ -220,36 +283,48 @@ export default function OrderStatusScreen() {
                     ]}
                   >
                     {isCompleted ? (
-                      <Feather name="check" size={12} color="#FFFFFF" />
+                      <Feather name="check" size={14} color="#FFFFFF" />
                     ) : null}
                   </View>
+                  {!isLast ? (
+                    <View
+                      style={[
+                        styles.progressLine,
+                        {
+                          backgroundColor:
+                            index < currentStatusIndex
+                              ? LDPSColors.success
+                              : theme.border,
+                        },
+                      ]}
+                    />
+                  ) : null}
+                </View>
+                <View style={styles.progressContent}>
                   <ThemedText
-                    type="small"
+                    type="body"
                     style={[
                       styles.progressLabel,
                       {
+                        fontWeight: isCurrent ? "700" : "400",
                         color: isCompleted ? theme.text : theme.textSecondary,
-                        fontWeight: isCurrent ? "600" : "400",
                       },
                     ]}
                   >
                     {status.label}
                   </ThemedText>
+                  {isCurrent && !isDelivered ? (
+                    <View style={styles.currentBadge}>
+                      <ThemedText
+                        type="small"
+                        style={{ color: LDPSColors.primary }}
+                      >
+                        Current
+                      </ThemedText>
+                    </View>
+                  ) : null}
                 </View>
-                {index < STATUSES.length - 1 ? (
-                  <View
-                    style={[
-                      styles.progressLine,
-                      {
-                        backgroundColor:
-                          index < currentStatusIndex
-                            ? LDPSColors.success
-                            : theme.border,
-                      },
-                    ]}
-                  />
-                ) : null}
-              </React.Fragment>
+              </View>
             );
           })}
         </View>
@@ -257,144 +332,169 @@ export default function OrderStatusScreen() {
 
       {order.driverName ? (
         <Animated.View
-          entering={FadeInDown.delay(300).duration(400)}
-          style={[
-            styles.driverCard,
-            { backgroundColor: theme.backgroundDefault },
-          ]}
+          entering={FadeInDown.delay(250).duration(400)}
+          style={[styles.section, { paddingHorizontal: Spacing.xl }]}
         >
-          <View style={styles.driverHeader}>
-            <ThemedText type="h4">Delivery Partner</ThemedText>
-          </View>
+          <AnimatedCard style={styles.driverCard}>
+            <ThemedText type="h4" style={styles.cardTitle}>
+              Delivery Partner
+            </ThemedText>
 
-          <View style={styles.driverInfo}>
-            <View
-              style={[
-                styles.driverAvatar,
-                { backgroundColor: LDPSColors.primary },
-              ]}
-            >
-              <ThemedText
-                type="h4"
-                style={{ color: "#FFFFFF" }}
+            <View style={styles.driverInfo}>
+              <View
+                style={[styles.driverAvatar, { backgroundColor: LDPSColors.primary }]}
               >
-                {order.driverName.charAt(0)}
-              </ThemedText>
-            </View>
-            <View style={styles.driverDetails}>
-              <ThemedText type="h4">{order.driverName}</ThemedText>
-              <View style={styles.ratingContainer}>
-                <Feather name="star" size={14} color={LDPSColors.warning} />
-                <ThemedText type="small">{order.driverRating}</ThemedText>
+                <ThemedText type="h3" style={{ color: "#FFFFFF" }}>
+                  {order.driverName.charAt(0)}
+                </ThemedText>
+              </View>
+              <View style={styles.driverDetails}>
+                <ThemedText type="h4">{order.driverName}</ThemedText>
+                <View style={styles.ratingContainer}>
+                  <Feather name="star" size={14} color={LDPSColors.warning} />
+                  <ThemedText type="small">{order.driverRating}</ThemedText>
+                  <ThemedText
+                    type="small"
+                    style={{ color: theme.textSecondary }}
+                  >
+                    {" "}
+                    (127 trips)
+                  </ThemedText>
+                </View>
+              </View>
+              <View style={styles.driverActions}>
+                <Pressable
+                  style={[
+                    styles.actionButton,
+                    { backgroundColor: `${LDPSColors.success}15` },
+                  ]}
+                  onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
+                >
+                  <Feather name="phone" size={18} color={LDPSColors.success} />
+                </Pressable>
+                <Pressable
+                  style={[
+                    styles.actionButton,
+                    { backgroundColor: `${LDPSColors.primary}15` },
+                  ]}
+                  onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
+                >
+                  <Feather
+                    name="message-circle"
+                    size={18}
+                    color={LDPSColors.primary}
+                  />
+                </Pressable>
               </View>
             </View>
-            <Pressable
-              style={[
-                styles.callButton,
-                { backgroundColor: `${LDPSColors.success}20` },
-              ]}
-              onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
-            >
-              <Feather name="phone" size={20} color={LDPSColors.success} />
-            </Pressable>
-          </View>
+          </AnimatedCard>
         </Animated.View>
       ) : null}
 
       <Animated.View
-        entering={FadeInDown.delay(400).duration(400)}
-        style={[
-          styles.orderDetailsCard,
-          { backgroundColor: theme.backgroundDefault },
-        ]}
+        entering={FadeInDown.delay(300).duration(400)}
+        style={[styles.section, { paddingHorizontal: Spacing.xl }]}
       >
-        <ThemedText type="h4" style={styles.cardTitle}>
-          Delivery Details
-        </ThemedText>
+        <AnimatedCard style={styles.detailsCard}>
+          <ThemedText type="h4" style={styles.cardTitle}>
+            Delivery Details
+          </ThemedText>
 
-        <View style={styles.addressSection}>
-          <View style={styles.addressRow}>
-            <View
-              style={[
-                styles.addressIcon,
-                { backgroundColor: `${LDPSColors.pickupMarker}20` },
-              ]}
-            >
-              <Feather
-                name="circle"
-                size={12}
-                color={LDPSColors.pickupMarker}
+          <View style={styles.addressSection}>
+            <View style={styles.addressRow}>
+              <View
+                style={[
+                  styles.addressIcon,
+                  { backgroundColor: `${LDPSColors.pickupMarker}15` },
+                ]}
+              >
+                <Feather
+                  name="circle"
+                  size={14}
+                  color={LDPSColors.pickupMarker}
+                />
+              </View>
+              <View style={styles.addressContent}>
+                <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                  Pickup
+                </ThemedText>
+                <ThemedText type="body">{order.pickupAddress}</ThemedText>
+              </View>
+            </View>
+
+            <View style={styles.addressConnector}>
+              <View
+                style={[styles.connectorLine, { backgroundColor: theme.border }]}
               />
             </View>
-            <View style={styles.addressContent}>
-              <ThemedText type="small" style={{ color: theme.textSecondary }}>
-                Pickup
-              </ThemedText>
-              <ThemedText type="body">{order.pickupAddress}</ThemedText>
+
+            <View style={styles.addressRow}>
+              <View
+                style={[
+                  styles.addressIcon,
+                  { backgroundColor: `${LDPSColors.dropMarker}15` },
+                ]}
+              >
+                <Feather
+                  name="map-pin"
+                  size={14}
+                  color={LDPSColors.dropMarker}
+                />
+              </View>
+              <View style={styles.addressContent}>
+                <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                  Drop
+                </ThemedText>
+                <ThemedText type="body">{order.dropAddress}</ThemedText>
+              </View>
             </View>
           </View>
 
-          <View style={styles.addressConnector}>
-            <View
-              style={[styles.connectorLine, { backgroundColor: theme.border }]}
-            />
-          </View>
+          <View style={[styles.separator, { backgroundColor: theme.border }]} />
 
-          <View style={styles.addressRow}>
-            <View
-              style={[
-                styles.addressIcon,
-                { backgroundColor: `${LDPSColors.dropMarker}20` },
-              ]}
-            >
-              <Feather name="map-pin" size={12} color={LDPSColors.dropMarker} />
+          <View style={styles.orderStats}>
+            <View style={styles.orderStat}>
+              <Feather name="navigation" size={18} color={theme.textSecondary} />
+              <View>
+                <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                  Distance
+                </ThemedText>
+                <ThemedText type="h4">{order.distance} km</ThemedText>
+              </View>
             </View>
-            <View style={styles.addressContent}>
-              <ThemedText type="small" style={{ color: theme.textSecondary }}>
-                Drop
-              </ThemedText>
-              <ThemedText type="body">{order.dropAddress}</ThemedText>
+            <View style={styles.statDivider} />
+            <View style={styles.orderStat}>
+              <Feather name="credit-card" size={18} color={theme.textSecondary} />
+              <View>
+                <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                  Amount
+                </ThemedText>
+                <ThemedText type="h4" style={{ color: LDPSColors.primary }}>
+                  Rs. {order.price}
+                </ThemedText>
+              </View>
             </View>
           </View>
-        </View>
-
-        <View style={[styles.separator, { backgroundColor: theme.border }]} />
-
-        <View style={styles.orderFooter}>
-          <View style={styles.footerItem}>
-            <ThemedText type="small" style={{ color: theme.textSecondary }}>
-              Distance
-            </ThemedText>
-            <ThemedText type="body" style={{ fontWeight: "600" }}>
-              {order.distance} km
-            </ThemedText>
-          </View>
-          <View style={styles.footerItem}>
-            <ThemedText type="small" style={{ color: theme.textSecondary }}>
-              Amount
-            </ThemedText>
-            <ThemedText
-              type="body"
-              style={{ fontWeight: "600", color: LDPSColors.primary }}
-            >
-              Rs. {order.price}
-            </ThemedText>
-          </View>
-        </View>
+        </AnimatedCard>
       </Animated.View>
 
       {!isDelivered ? (
-        <Pressable
-          style={styles.cancelButton}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            navigation.goBack();
-          }}
+        <Animated.View
+          entering={FadeInDown.delay(350).duration(400)}
+          style={styles.cancelSection}
         >
-          <ThemedText type="body" style={{ color: LDPSColors.error }}>
-            Cancel Order
-          </ThemedText>
-        </Pressable>
+          <Pressable
+            style={styles.cancelButton}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              navigation.goBack();
+            }}
+          >
+            <ThemedText type="body" style={{ color: LDPSColors.error }}>
+              Cancel Order
+            </ThemedText>
+          </Pressable>
+        </Animated.View>
       ) : null}
     </KeyboardAwareScrollViewCompat>
   );
@@ -408,68 +508,122 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  header: {
-    marginBottom: 24,
-    gap: 4,
+  headerSection: {
+    paddingHorizontal: Spacing.xl,
+    marginBottom: Spacing.lg,
+  },
+  orderIdRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  copyButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  section: {
+    marginBottom: Spacing.lg,
+  },
+  statusSection: {
+    paddingHorizontal: Spacing.xl,
+    marginBottom: Spacing.lg,
   },
   statusCard: {
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.xl,
     padding: Spacing.xl,
-    marginBottom: 16,
-  },
-  currentStatusSection: {
     alignItems: "center",
-    marginBottom: 32,
+    overflow: "hidden",
+  },
+  statusCardDecoration: {
+    position: "absolute",
+    top: -50,
+    right: -50,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: "rgba(255,255,255,0.1)",
   },
   statusIconContainer: {
     width: 80,
     height: 80,
     borderRadius: 40,
+    backgroundColor: "rgba(255,255,255,0.2)",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 16,
   },
-  statusLabel: {
-    marginBottom: 4,
-    textAlign: "center",
+  statusTitle: {
+    color: "#FFFFFF",
+    marginBottom: 8,
   },
-  progressContainer: {
-    gap: 0,
+  statusMessage: {
+    color: "rgba(255,255,255,0.9)",
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  estimatedTime: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: BorderRadius.full,
+  },
+  progressCard: {
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xl,
   },
   progressStep: {
     flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  progressIndicator: {
     alignItems: "center",
-    gap: 12,
+    width: 28,
   },
   progressDot: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     borderWidth: 2,
     justifyContent: "center",
     alignItems: "center",
-  },
-  progressLabel: {
-    flex: 1,
+    zIndex: 1,
   },
   progressLine: {
     width: 2,
-    height: 20,
-    marginLeft: 11,
+    height: 32,
     marginVertical: 4,
   },
-  driverCard: {
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.xl,
-    marginBottom: 16,
+  progressContent: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginLeft: 16,
+    paddingBottom: 24,
   },
-  driverHeader: {
+  progressLabel: {},
+  currentBadge: {
+    backgroundColor: `${LDPSColors.primary}15`,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
+  },
+  driverCard: {
+    padding: Spacing.xl,
+  },
+  cardTitle: {
     marginBottom: 16,
   },
   driverInfo: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 16,
   },
   driverAvatar: {
     width: 56,
@@ -480,6 +634,7 @@ const styles = StyleSheet.create({
   },
   driverDetails: {
     flex: 1,
+    marginLeft: 16,
     gap: 4,
   },
   ratingContainer: {
@@ -487,33 +642,30 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 4,
   },
-  callButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  driverActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  actionButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
   },
-  orderDetailsCard: {
-    borderRadius: BorderRadius.lg,
+  detailsCard: {
     padding: Spacing.xl,
-    marginBottom: 16,
   },
-  cardTitle: {
-    marginBottom: 16,
-  },
-  addressSection: {
-    marginBottom: 4,
-  },
+  addressSection: {},
   addressRow: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 12,
   },
   addressIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
     marginTop: 2,
@@ -523,8 +675,8 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   addressConnector: {
-    paddingLeft: 13,
-    height: 16,
+    paddingLeft: 15,
+    height: 24,
     justifyContent: "center",
   },
   connectorLine: {
@@ -533,14 +685,27 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: 1,
-    marginVertical: 16,
+    marginVertical: 20,
   },
-  orderFooter: {
+  orderStats: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    alignItems: "center",
   },
-  footerItem: {
-    gap: 4,
+  orderStat: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  statDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: "rgba(0,0,0,0.05)",
+    marginHorizontal: 16,
+  },
+  cancelSection: {
+    paddingHorizontal: Spacing.xl,
+    marginTop: 8,
   },
   cancelButton: {
     alignItems: "center",
