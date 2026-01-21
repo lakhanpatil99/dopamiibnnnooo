@@ -1,0 +1,130 @@
+You are a senior Flutter developer and UI/UX designer.
+
+Create a complete Flutter mobile application named:
+
+LDPS – Local Delivery Partner Service
+
+IMPORTANT RULES:
+- FRONTEND ONLY
+- NO backend
+- NO Firebase
+- NO API calls
+- NO Kotlin / Java / XML
+- Use Flutter (Dart)
+- Use Material 3 design
+- Use SharedPreferences for temporary local storage
+- App must run without errors
+- Clean, modern, professional UI
+- Mobile-first design
+- Ready to build APK
+
+--------------------------------------------------
+APP FEATURES & SCREENS
+--------------------------------------------------
+
+1. SPLASH SCREEN
+- App name: LDPS
+- Subtitle: Local Delivery Partner Service
+- App icon
+- Smooth animation
+- Auto navigate to Login screen
+
+2. LOGIN SCREEN
+- Email / Phone input
+- Password input
+- Login button
+- Register link
+- Save login state using SharedPreferences
+
+3. REGISTER SCREEN
+- Name
+- Phone
+- Email
+- Password
+- Confirm password
+- Save user data locally
+- Redirect to Login
+
+4. HOME SCREEN (Like Uber / Porter)
+- Pickup location input
+- Drop location input
+- Book Delivery button
+- Offers banner
+- Recent orders section
+- Clean card-based UI
+- Bottom navigation bar
+
+5. GOOGLE MAPS SCREEN (IMPORTANT)
+- Integrate Google Maps widget (frontend only)
+- Show user current location (mocked)
+- Pickup location marker
+- Drop location marker
+- Zoom controls
+- Map UI only (no API calls)
+- Used for visual purpose only
+- Professional UI like Uber map screen
+
+6. PICKUP & DROP SCREEN
+- Pickup address input
+- Drop address input
+- Dummy distance calculation
+- Estimated price
+- Confirm order button
+
+7. ORDER SUMMARY SCREEN
+- Pickup address
+- Drop address
+- Distance
+- Price
+- Confirm order
+- Save order in SharedPreferences
+
+8. ORDER STATUS SCREEN
+- Order ID
+- Status: Searching → Assigned → Delivered
+- Animated progress indicator
+- Fake status change using Timer
+
+9. PROFILE SCREEN
+- User name
+- Phone
+- Email
+- Total orders
+- Logout button
+
+--------------------------------------------------
+DESIGN REQUIREMENTS
+--------------------------------------------------
+- Material 3 UI
+- Smooth animations
+- Rounded cards
+- Clean typography
+- Professional color palette
+- Responsive layout
+- Bottom navigation bar
+- Icons and modern UI style
+
+--------------------------------------------------
+TECHNICAL REQUIREMENTS
+--------------------------------------------------
+- Flutter only
+- No backend
+- No Firebase
+- No API calls
+- Use SharedPreferences
+- Navigator for routing
+- Clean folder structure
+- No runtime errors
+- Ready to generate APK
+
+--------------------------------------------------
+FINAL TASK
+--------------------------------------------------
+- Polish entire UI
+- Fix spacing & alignment
+- Improve animations
+- Optimize layout
+- Ensure smooth navigation
+- Make app look production-ready
+
+Return FULL working Flutter code.
