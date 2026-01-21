@@ -1,0 +1,344 @@
+import React, { useState, useRef, useEffect } from "react";
+import { View, StyleSheet, Pressable, Platform } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { Feather } from "@expo/vector-icons";
+import MapView, { Marker, PROVIDER_GOOGLE, Region } from "react-native-maps";
+import * as Haptics from "expo-haptics";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  FadeIn,
+} from "react-native-reanimated";
+
+import { ThemedText } from "@/components/ThemedText";
+import { Button } from "@/components/Button";
+import { useTheme } from "@/hooks/useTheme";
+import { RootStackParamList } from "@/navigation/RootStackNavigator";
+import { Spacing, BorderRadius, LDPSColors } from "@/constants/theme";
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type MapRouteProp = RouteProp<RootStackParamList, "Map">;
+
+const SAMPLE_ADDRESSES = [
+  "123 Main Street, Downtown",
+  "456 Park Avenue, Midtown",
+  "789 Oak Lane, Suburbs",
+  "321 Market Square, City Center",
+  "555 Business Park, Tech Hub",
+];
+
+const INITIAL_REGION: Region = {
+  latitude: 28.6139,
+  longitude: 77.209,
+  latitudeDelta: 0.02,
+  longitudeDelta: 0.02,
+};
+
+export default function MapScreen() {
+  const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<MapRouteProp>();
+  const insets = useSafeAreaInsets();
+  const { theme } = useTheme();
+  const mapRef = useRef<MapView>(null);
+
+  const { type, currentAddress } = route.params;
+  const isPickup = type === "pickup";
+
+  const [selectedLocation, setSelectedLocation] = useState<Region>(INITIAL_REGION);
+  const [address, setAddress] = useState(
+    currentAddress ||
+      SAMPLE_ADDRESSES[Math.floor(Math.random() * SAMPLE_ADDRESSES.length)],
+  );
+
+  const markerScale = useSharedValue(1);
+
+  const handleRegionChange = (region: Region) => {
+    setSelectedLocation(region);
+    markerScale.value = withSpring(1.2);
+    setTimeout(() => {
+      markerScale.value = withSpring(1);
+    }, 200);
+    const randomAddress =
+      SAMPLE_ADDRESSES[Math.floor(Math.random() * SAMPLE_ADDRESSES.length)];
+    setAddress(randomAddress);
+  };
+
+  const handleCurrentLocation = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    mapRef.current?.animateToRegion(INITIAL_REGION, 500);
+  };
+
+  const handleZoomIn = () => {
+    Haptics.selectionAsync();
+    const newRegion = {
+      ...selectedLocation,
+      latitudeDelta: selectedLocation.latitudeDelta / 2,
+      longitudeDelta: selectedLocation.longitudeDelta / 2,
+    };
+    mapRef.current?.animateToRegion(newRegion, 300);
+    setSelectedLocation(newRegion);
+  };
+
+  const handleZoomOut = () => {
+    Haptics.selectionAsync();
+    const newRegion = {
+      ...selectedLocation,
+      latitudeDelta: selectedLocation.latitudeDelta * 2,
+      longitudeDelta: selectedLocation.longitudeDelta * 2,
+    };
+    mapRef.current?.animateToRegion(newRegion, 300);
+    setSelectedLocation(newRegion);
+  };
+
+  const handleConfirm = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    navigation.navigate("PickupDrop", {
+      pickupAddress: isPickup ? address : route.params.currentAddress || "",
+      dropAddress: isPickup ? route.params.currentAddress || "" : address,
+      [isPickup ? "pickupAddress" : "dropAddress"]: address,
+    });
+  };
+
+  const markerAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: markerScale.value }],
+  }));
+
+  return (
+    <View style={styles.container}>
+      <MapView
+        ref={mapRef}
+        style={styles.map}
+        initialRegion={INITIAL_REGION}
+        onRegionChangeComplete={handleRegionChange}
+        provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
+        showsUserLocation
+        showsMyLocationButton={false}
+      />
+
+      <View style={[styles.markerContainer, { pointerEvents: "none" }]}>
+        <Animated.View style={[styles.marker, markerAnimatedStyle]}>
+          <View
+            style={[
+              styles.markerPin,
+              {
+                backgroundColor: isPickup
+                  ? LDPSColors.pickupMarker
+                  : LDPSColors.dropMarker,
+              },
+            ]}
+          >
+            <Feather
+              name={isPickup ? "circle" : "map-pin"}
+              size={20}
+              color="#FFFFFF"
+            />
+          </View>
+          <View
+            style={[
+              styles.markerShadow,
+              {
+                backgroundColor: isPickup
+                  ? LDPSColors.pickupMarker
+                  : LDPSColors.dropMarker,
+              },
+            ]}
+          />
+        </Animated.View>
+      </View>
+
+      <View style={[styles.zoomControls, { top: insets.top + 100 }]}>
+        <Pressable
+          style={[styles.zoomButton, { backgroundColor: theme.backgroundDefault }]}
+          onPress={handleZoomIn}
+        >
+          <Feather name="plus" size={20} color={theme.text} />
+        </Pressable>
+        <View style={[styles.zoomDivider, { backgroundColor: theme.border }]} />
+        <Pressable
+          style={[styles.zoomButton, { backgroundColor: theme.backgroundDefault }]}
+          onPress={handleZoomOut}
+        >
+          <Feather name="minus" size={20} color={theme.text} />
+        </Pressable>
+      </View>
+
+      <Pressable
+        style={[
+          styles.currentLocationButton,
+          {
+            backgroundColor: theme.backgroundDefault,
+            bottom: insets.bottom + 180,
+          },
+        ]}
+        onPress={handleCurrentLocation}
+      >
+        <Feather name="navigation" size={20} color={LDPSColors.primary} />
+      </Pressable>
+
+      <Animated.View
+        entering={FadeIn.duration(300)}
+        style={[
+          styles.bottomCard,
+          {
+            backgroundColor: theme.backgroundDefault,
+            paddingBottom: insets.bottom + 20,
+          },
+        ]}
+      >
+        <View style={styles.handleBar}>
+          <View style={[styles.handle, { backgroundColor: theme.border }]} />
+        </View>
+
+        <View style={styles.addressSection}>
+          <View
+            style={[
+              styles.addressIcon,
+              {
+                backgroundColor: isPickup
+                  ? `${LDPSColors.pickupMarker}20`
+                  : `${LDPSColors.dropMarker}20`,
+              },
+            ]}
+          >
+            <Feather
+              name={isPickup ? "circle" : "map-pin"}
+              size={16}
+              color={isPickup ? LDPSColors.pickupMarker : LDPSColors.dropMarker}
+            />
+          </View>
+          <View style={styles.addressText}>
+            <ThemedText type="small" style={{ color: theme.textSecondary }}>
+              {isPickup ? "Pickup Location" : "Drop Location"}
+            </ThemedText>
+            <ThemedText type="h4" numberOfLines={2}>
+              {address}
+            </ThemedText>
+          </View>
+        </View>
+
+        <Button onPress={handleConfirm} style={styles.confirmButton}>
+          Confirm {isPickup ? "Pickup" : "Drop"} Location
+        </Button>
+      </Animated.View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  map: {
+    flex: 1,
+  },
+  markerContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 100,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  marker: {
+    alignItems: "center",
+  },
+  markerPin: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  markerShadow: {
+    width: 16,
+    height: 8,
+    borderRadius: 8,
+    marginTop: -4,
+    opacity: 0.3,
+  },
+  zoomControls: {
+    position: "absolute",
+    right: 16,
+    borderRadius: BorderRadius.sm,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  zoomButton: {
+    width: 44,
+    height: 44,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  zoomDivider: {
+    height: 1,
+  },
+  currentLocationButton: {
+    position: "absolute",
+    right: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  bottomCard: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    borderTopLeftRadius: BorderRadius.xl,
+    borderTopRightRadius: BorderRadius.xl,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 12,
+  },
+  handleBar: {
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+  },
+  addressSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 20,
+  },
+  addressIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  addressText: {
+    flex: 1,
+    gap: 2,
+  },
+  confirmButton: {},
+});
