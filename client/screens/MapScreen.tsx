@@ -1,10 +1,9 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { View, StyleSheet, Pressable, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
-import MapView, { Marker, PROVIDER_GOOGLE, Region } from "react-native-maps";
 import * as Haptics from "expo-haptics";
 import Animated, {
   useAnimatedStyle,
@@ -30,6 +29,13 @@ const SAMPLE_ADDRESSES = [
   "555 Business Park, Tech Hub",
 ];
 
+type Region = {
+  latitude: number;
+  longitude: number;
+  latitudeDelta: number;
+  longitudeDelta: number;
+};
+
 const INITIAL_REGION: Region = {
   latitude: 28.6139,
   longitude: 77.209,
@@ -37,12 +43,21 @@ const INITIAL_REGION: Region = {
   longitudeDelta: 0.02,
 };
 
+let MapView: any = null;
+let PROVIDER_GOOGLE: any = undefined;
+
+if (Platform.OS !== "web") {
+  const maps = require("react-native-maps");
+  MapView = maps.default;
+  PROVIDER_GOOGLE = maps.PROVIDER_GOOGLE;
+}
+
 export default function MapScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<MapRouteProp>();
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<any>(null);
 
   const { type, currentAddress } = route.params;
   const isPickup = type === "pickup";
@@ -67,12 +82,16 @@ export default function MapScreen() {
   };
 
   const handleCurrentLocation = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
     mapRef.current?.animateToRegion(INITIAL_REGION, 500);
   };
 
   const handleZoomIn = () => {
-    Haptics.selectionAsync();
+    if (Platform.OS !== "web") {
+      Haptics.selectionAsync();
+    }
     const newRegion = {
       ...selectedLocation,
       latitudeDelta: selectedLocation.latitudeDelta / 2,
@@ -83,7 +102,9 @@ export default function MapScreen() {
   };
 
   const handleZoomOut = () => {
-    Haptics.selectionAsync();
+    if (Platform.OS !== "web") {
+      Haptics.selectionAsync();
+    }
     const newRegion = {
       ...selectedLocation,
       latitudeDelta: selectedLocation.latitudeDelta * 2,
@@ -94,7 +115,9 @@ export default function MapScreen() {
   };
 
   const handleConfirm = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
     navigation.navigate("PickupDrop", {
       pickupAddress: isPickup ? address : route.params.currentAddress || "",
       dropAddress: isPickup ? route.params.currentAddress || "" : address,
@@ -102,21 +125,139 @@ export default function MapScreen() {
     });
   };
 
+  const handleSelectAddress = (newAddress: string) => {
+    setAddress(newAddress);
+  };
+
   const markerAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: markerScale.value }],
   }));
 
+  if (Platform.OS === "web") {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
+        <View style={[styles.webMapPlaceholder, { backgroundColor: theme.backgroundSecondary }]}>
+          <View style={styles.webMapContent}>
+            <View
+              style={[
+                styles.webMapIcon,
+                { backgroundColor: `${LDPSColors.primary}15` },
+              ]}
+            >
+              <Feather name="map" size={48} color={LDPSColors.primary} />
+            </View>
+            <ThemedText type="h3" style={styles.webMapTitle}>
+              Select {isPickup ? "Pickup" : "Drop"} Location
+            </ThemedText>
+            <ThemedText
+              type="body"
+              style={[styles.webMapSubtitle, { color: theme.textSecondary }]}
+            >
+              Map view is available in Expo Go app
+            </ThemedText>
+          </View>
+
+          <View style={styles.addressList}>
+            <ThemedText type="h4" style={styles.addressListTitle}>
+              Select an address:
+            </ThemedText>
+            {SAMPLE_ADDRESSES.map((addr, index) => (
+              <Pressable
+                key={index}
+                style={[
+                  styles.addressOption,
+                  {
+                    backgroundColor:
+                      address === addr
+                        ? `${LDPSColors.primary}15`
+                        : theme.backgroundDefault,
+                    borderColor:
+                      address === addr ? LDPSColors.primary : theme.border,
+                  },
+                ]}
+                onPress={() => handleSelectAddress(addr)}
+              >
+                <Feather
+                  name={address === addr ? "check-circle" : "circle"}
+                  size={20}
+                  color={address === addr ? LDPSColors.primary : theme.textSecondary}
+                />
+                <ThemedText
+                  type="body"
+                  style={{
+                    flex: 1,
+                    color: address === addr ? LDPSColors.primary : theme.text,
+                  }}
+                >
+                  {addr}
+                </ThemedText>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        <Animated.View
+          entering={FadeIn.duration(300)}
+          style={[
+            styles.bottomCard,
+            {
+              backgroundColor: theme.backgroundDefault,
+              paddingBottom: insets.bottom + 20,
+            },
+          ]}
+        >
+          <View style={styles.handleBar}>
+            <View style={[styles.handle, { backgroundColor: theme.border }]} />
+          </View>
+
+          <View style={styles.addressSection}>
+            <View
+              style={[
+                styles.addressIcon,
+                {
+                  backgroundColor: isPickup
+                    ? `${LDPSColors.pickupMarker}20`
+                    : `${LDPSColors.dropMarker}20`,
+                },
+              ]}
+            >
+              <Feather
+                name={isPickup ? "circle" : "map-pin"}
+                size={16}
+                color={isPickup ? LDPSColors.pickupMarker : LDPSColors.dropMarker}
+              />
+            </View>
+            <View style={styles.addressText}>
+              <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                {isPickup ? "Pickup Location" : "Drop Location"}
+              </ThemedText>
+              <ThemedText type="h4" numberOfLines={2}>
+                {address}
+              </ThemedText>
+            </View>
+          </View>
+
+          <Button onPress={handleConfirm} style={styles.confirmButton}>
+            Confirm {isPickup ? "Pickup" : "Drop"} Location
+          </Button>
+        </Animated.View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      <MapView
-        ref={mapRef}
-        style={styles.map}
-        initialRegion={INITIAL_REGION}
-        onRegionChangeComplete={handleRegionChange}
-        provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
-        showsUserLocation
-        showsMyLocationButton={false}
-      />
+      {MapView ? (
+        <MapView
+          ref={mapRef}
+          style={styles.map}
+          initialRegion={INITIAL_REGION}
+          onRegionChangeComplete={handleRegionChange}
+          provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
+          showsUserLocation
+          showsMyLocationButton={false}
+        />
+      ) : null}
 
       <View style={[styles.markerContainer, { pointerEvents: "none" }]}>
         <Animated.View style={[styles.marker, markerAnimatedStyle]}>
@@ -233,6 +374,44 @@ const styles = StyleSheet.create({
   },
   map: {
     flex: 1,
+  },
+  webMapPlaceholder: {
+    flex: 1,
+    padding: Spacing.xl,
+    paddingBottom: 200,
+  },
+  webMapContent: {
+    alignItems: "center",
+    paddingVertical: Spacing["3xl"],
+  },
+  webMapIcon: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  webMapTitle: {
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  webMapSubtitle: {
+    textAlign: "center",
+  },
+  addressList: {
+    gap: 12,
+  },
+  addressListTitle: {
+    marginBottom: 8,
+  },
+  addressOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: Spacing.lg,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1.5,
   },
   markerContainer: {
     position: "absolute",
