@@ -259,7 +259,7 @@ export default function MapScreen() {
         />
       ) : null}
 
-      <View style={[styles.markerContainer, { pointerEvents: "none" }]}>
+      <View style={[styles.markerContainer, { pointerEvents: "none" as const }]}>
         <Animated.View style={[styles.marker, markerAnimatedStyle]}>
           <View
             style={[
